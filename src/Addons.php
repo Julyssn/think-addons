@@ -160,6 +160,23 @@ abstract class Addons
     }
 
     /**
+     * 设置插件信息数据
+     * @param       $name
+     * @param array $value
+     * @return array
+     */
+    final public function setInfo($name = '', $value = [])
+    {
+        if (empty($name)) {
+            $name = $this->getName();
+        }
+        $info = $this->getInfo($name);
+        $info = array_merge($info, $value);
+        Config::set($info, $this->addon_info);
+        return $info;
+    }
+
+    /**
      * 获取配置信息
      * @param bool $type 是否获取完整配置
      * @return array|mixed
@@ -183,6 +200,42 @@ abstract class Addons
         }
         Config::set($config, $this->addon_config);
 
+        return $config;
+    }
+
+    /**
+     * 获取完整配置列表
+     * @param string $name
+     * @return array
+     */
+    final public function getFullConfig($name = '')
+    {
+        $fullConfigArr = [];
+        if (empty($name)) {
+            $name = $this->getName();
+        }
+        $config_file = $this->addon_path . 'config.php';
+        if (is_file($config_file)) {
+            $fullConfigArr = include $config_file;
+        }
+        return $fullConfigArr;
+    }
+
+
+    /**
+     * 设置配置数据
+     * @param       $name
+     * @param array $value
+     * @return array
+     */
+    final public function setConfig($name = '', $value = [])
+    {
+        if (empty($name)) {
+            $name = $this->getName();
+        }
+        $config = $this->getConfig($name);
+        $config = array_merge($config, $value);
+        Config::set($config, $this->addon_config);
         return $config;
     }
 
