@@ -221,7 +221,6 @@ abstract class Addons
         return $fullConfigArr;
     }
 
-
     /**
      * 设置配置数据
      * @param       $name
@@ -237,6 +236,22 @@ abstract class Addons
         $config = array_merge($config, $value);
         Config::set($config, $this->addon_config);
         return $config;
+    }
+
+    /**
+     * 检查基础配置信息是否完整
+     * @return bool
+     */
+    final public function checkInfo()
+    {
+        $info = $this->getInfo();
+        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'state'];
+        foreach ($info_check_keys as $value) {
+            if (!array_key_exists($value, $info)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     //必须实现安装

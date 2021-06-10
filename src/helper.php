@@ -393,3 +393,32 @@ if (!function_exists('is_really_writable')) {
         return true;
     }
 }
+
+if (!function_exists('rmdirs')) {
+
+    /**
+     * 删除文件夹
+     * @param string $dirname  目录
+     * @param bool   $withself 是否删除自身
+     * @return boolean
+     */
+    function rmdirs($dirname, $withself = true)
+    {
+        if (!is_dir($dirname)) {
+            return false;
+        }
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dirname, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($files as $fileinfo) {
+            $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+            $todo($fileinfo->getRealPath());
+        }
+        if ($withself) {
+            @rmdir($dirname);
+        }
+        return true;
+    }
+}

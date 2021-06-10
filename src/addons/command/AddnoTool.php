@@ -1,5 +1,5 @@
 <?php
-
+declare(strict_types=1);
 
 namespace think\addons\command;
 
@@ -8,8 +8,9 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\TransferException;
 use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
-use think\addons\AddonException;
+use think\addons\exception\AddonException;
 use think\Exception;
+use think\facade\Db;
 
 class AddnoTool
 {
@@ -17,27 +18,28 @@ class AddnoTool
     /**
      * 远程下载插件
      *
-     * @param string $name   插件名称
-     * @param array  $extend 扩展参数
+     * @param string $name 插件名称
+     * @param string $url 下载地址
+     * @param array $extend 扩展参数
      * @return  string
      */
     public static function download($name, $url, $extend = [])
     {
         $addonsTempDir = self::getAddonsBackupDir();
-        $tmpFile = $addonsTempDir . $name . ".zip";
+        $tmpFile       = $addonsTempDir . $name . ".zip";
         try {
-            $client = self::getClient();
+            $client   = self::getClient();
             $response = $client->get($url, ['query' => array_merge(['name' => $name], $extend)]);
-            $body = $response->getBody();
-            $content = $body->getContents();
+            $body     = $response->getBody();
+            $content  = $body->getContents();
             if (substr($content, 0, 1) === '{') {
                 $json = (array)json_decode($content, true);
 
                 //如果传回的是一个下载链接,则再次下载
                 if ($json['data'] && isset($json['data']['url'])) {
                     $response = $client->get($json['data']['url']);
-                    $body = $response->getBody();
-                    $content = $body->getContents();
+                    $body     = $response->getBody();
+                    $content  = $body->getContents();
                 } else {
                     //下载返回错误，抛出异常
                     throw new AddonException($json['msg'], $json['code'], $json['data']);
@@ -68,7 +70,7 @@ class AddnoTool
             throw new Exception('Invalid parameters');
         }
         $addonsBackupDir = self::getAddonsBackupDir();
-        $file = $addonsBackupDir . $name . '.zip';
+        $file            = $addonsBackupDir . $name . '.zip';
 
         // 打开插件压缩包
         $zip = new ZipFile();
@@ -95,6 +97,351 @@ class AddnoTool
         return $dir;
     }
 
+    /**
+     * 检测插件是否完整
+     *
+     * @param string $name 插件名称
+     * @return  boolean
+     * @throws  Exception
+     */
+    public static function check($name)
+    {
+        if (!$name || !is_dir(ADDON_PATH . $name)) {
+            throw new Exception('Addon not exists');
+        }
+        $addonClass = get_addons_class($name);
+        if (!$addonClass) {
+            throw new Exception("The addon file does not exist");
+        }
+        $addon = new $addonClass(app());
+        if (!$addon->checkInfo()) {
+            throw new Exception("The configuration file content is incorrect");
+        }
+        return true;
+    }
+
+    /**
+     * 备份插件
+     * @param string $name 插件名称
+     * @return bool
+     * @throws Exception
+     */
+    public static function backup($name)
+    {
+        $addonsBackupDir = self::getAddonsBackupDir();
+        $file            = $addonsBackupDir . $name . '-backup-' . date("YmdHis") . '.zip';
+        $zipFile         = new ZipFile();
+        try {
+            $zipFile
+                ->addDirRecursive(self::getAddonDir($name))
+                ->saveAsFile($file)
+                ->close();
+        } catch (ZipException $e) {
+
+        } finally {
+            $zipFile->close();
+        }
+
+
+        return true;
+    }
+
+    /**
+     * 导入SQL
+     *
+     * @param string $name 插件名称
+     * @return  boolean
+     */
+    public static function importsql($name)
+    {
+        $sqlFile = self::getAddonDir($name) . 'install.sql';
+        if (is_file($sqlFile)) {
+            $lines    = file($sqlFile);
+            $templine = '';
+            foreach ($lines as $line) {
+                if (substr($line, 0, 2) == '--' || $line == '' || substr($line, 0, 2) == '/*') {
+                    continue;
+                }
+
+                $templine .= $line;
+                if (substr(trim($line), -1, 1) == ';') {
+                    $templine = str_ireplace('__PREFIX__', config('database.prefix'), $templine); //替换表前缀
+                    $templine = str_ireplace('INSERT INTO ', 'INSERT IGNORE INTO ', $templine);   //替换数据插入模式
+                    try {
+                        Db::getPdo()->exec($templine);
+                    } catch (\PDOException $e) {
+                        //$e->getMessage();
+                    }
+                    $templine = '';
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 安装插件
+     *
+     * @param string $name 插件名称
+     * @param string $url 下载地址
+     * @param array $extend 扩展参数
+     * @return  boolean
+     * @throws  Exception
+     * @throws  AddonException
+     */
+    public static function install($name, $url, $extend = [])
+    {
+        if (!$name || (is_dir(ADDON_PATH . $name) && !$force)) {
+            throw new Exception('Addon already exists');
+        }
+
+        // 远程下载插件
+        $tmpFile = self::download($name, $url, $extend);
+
+        $addonDir = self::getAddonDir($name);
+
+        try {
+            // 解压插件压缩包到插件目录
+            self::unzip($name);
+
+            // 检查插件是否完整
+            self::check($name);
+
+        } catch (AddonException $e) {
+            @rmdirs($addonDir);
+            throw new AddonException($e->getMessage(), $e->getCode(), $e->getData());
+        } catch (Exception $e) {
+            @rmdirs($addonDir);
+            throw new Exception($e->getMessage());
+        } finally {
+            // 移除临时文件
+            @unlink($tmpFile);
+        }
+
+        // 默认启用该插件
+        $info = get_addons_info($name);
+
+        Db::startTrans();
+        try {
+            if (!$info['state']) {
+                $info['state'] = 1;
+                set_addons_info($name, $info);
+            }
+
+            // 执行安装脚本
+            $class = get_addons_class($name);
+            if (class_exists($class)) {
+                $addon = new $class(app());
+                $addon->install();
+            }
+
+            //导入sql
+            self::importsql($name);
+
+            Db::commit();
+        } catch (Exception $e) {
+            @rmdirs($addonDir);
+            Db::rollback();
+            throw new Exception($e->getMessage());
+        }
+
+        // 启用插件
+        self::enable($name, true);
+
+        $info['config'] = get_addons_config($name) ? 1 : 0;
+        return $info;
+    }
+
+    /**
+     * 卸载插件
+     * @param $name
+     * @return bool
+     * @throws Exception
+     */
+    public static function uninstall($name)
+    {
+        if (!$name || !is_dir(ADDON_PATH . $name)) {
+            throw new Exception('Addon not exists');
+        }
+
+        // 执行卸载脚本
+        try {
+            $class = get_addons_class($name);
+            if (class_exists($class)) {
+                $addon = new $class(app());
+                $addon->uninstall();
+            }
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        // 移除插件目录
+        rmdirs(ADDON_PATH . $name);
+
+        return true;
+    }
+
+    /**
+     * 升级插件
+     *
+     * @param string $name 插件名称
+     * @param string $rul 插件下载地址
+     * @param array $extend 扩展参数
+     */
+    public static function upgrade($name, $url, $extend = [])
+    {
+        $info = get_addons_info($name);
+        if ($info['state']) {
+            throw new Exception(lang('Please disable addon first'));
+        }
+        $config = get_addons_config($name);
+
+        // 远程下载插件
+        $tmpFile = self::download($name, $url, $extend);
+
+        // 备份插件文件
+        self::backup($name);
+
+        $addonDir = self::getAddonDir($name);
+
+        try {
+            // 解压插件
+            self::unzip($name);
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        } finally {
+            // 移除临时文件
+            @unlink($tmpFile);
+        }
+
+        if ($config) {
+            // 还原配置
+            set_addons_config($name, $config);
+        }
+
+        // 导入
+        Db::startTrans();
+        try {
+            //导入sql
+            self::importsql($name);
+
+            Db::commit();
+        } catch (Exception $e) {
+            @rmdirs($addonDir);
+            Db::rollback();
+            throw new Exception($e->getMessage());
+        }
+
+        // 执行升级脚本
+        try {
+            $addonName = ucfirst($name);
+            //创建临时类用于调用升级的方法
+            $sourceFile = $addonDir . "Plugin.php";
+            $destFile   = $addonDir . "PluginUpgrade.php";
+
+            $classContent = str_replace("class Plugin extends", "class PluginUpgrade extends", file_get_contents($sourceFile));
+
+            //创建临时的类文件
+            file_put_contents($destFile, $classContent);
+
+            $className = "\\addons\\" . $name . "\\" . "PluginUpgrade";
+            $addon     = new $className(app());
+
+            //调用升级的方法
+            if (method_exists($addon, "upgrade")) {
+                $addon->upgrade();
+            }
+
+            //移除临时文件
+            @unlink($destFile);
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        //必须变更版本号
+        $info['version'] = isset($extend['version']) ? $extend['version'] : $info['version'];
+        $info['config']  = get_addons_config($name) ? 1 : 0;
+        return $info;
+    }
+
+
+    /**
+     * 启用
+     * @param string $name 插件名称
+     * @return  boolean
+     */
+    public static function enable($name)
+    {
+        if (!$name || !is_dir(ADDON_PATH . $name)) {
+            throw new Exception('Addon not exists');
+        }
+
+        //执行启用脚本
+        try {
+            $class = get_addons_class($name);
+            if (class_exists($class)) {
+                $addon = new $class(app());
+                if (method_exists($class, "enable")) {
+                    $addon->enable();
+                }
+            }
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        $info          = get_addons_info($name);
+        $info['state'] = 1;
+        unset($info['url']);
+
+        set_addons_info($name, $info);
+
+        return true;
+    }
+
+    /**
+     * 禁用
+     *
+     * @param string $name 插件名称
+     * @param boolean $force 是否强制禁用
+     * @return  boolean
+     * @throws  Exception
+     */
+    public static function disable($name, $force = false)
+    {
+        if (!$name || !is_dir(ADDON_PATH . $name)) {
+            throw new Exception('Addon not exists');
+        }
+
+        $info          = get_addons_info($name);
+        $info['state'] = 0;
+        unset($info['url']);
+
+        set_addons_info($name, $info);
+
+        // 执行禁用脚本
+        try {
+            $class = get_addons_class($name);
+            if (class_exists($class)) {
+                $addon = new $class(app());
+                if (method_exists($class, "disable")) {
+                    $addon->disable();
+                }
+            }
+        } catch (Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        return true;
+    }
+
+    /**
+     * 获取指定插件的目录
+     */
+    public static function getAddonDir($name)
+    {
+        $dir = ADDON_PATH . $name . DS;
+        return $dir;
+    }
 
     /**
      * 获取插件备份目录
@@ -115,11 +462,11 @@ class AddnoTool
     protected static function getClient()
     {
         $options = [
-            'timeout'         => 30,
+            'timeout' => 30,
             'connect_timeout' => 30,
-            'verify'          => false,
-            'http_errors'     => false,
-            'headers'         => [
+            'verify' => false,
+            'http_errors' => false,
+            'headers' => [
                 'X-REQUESTED-WITH' => 'XMLHttpRequest',
             ]
         ];
