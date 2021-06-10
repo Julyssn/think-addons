@@ -2,7 +2,7 @@
 The ThinkPHP 6 Addons Package
 
 ## 安装
-> composer require jylussn/think-addons
+> composer require julyssn/think-addons
 
 ## 配置
 
