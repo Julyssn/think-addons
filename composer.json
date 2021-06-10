@@ -13,7 +13,8 @@
         "topthink/framework": "^6.0.3",
         "topthink/think-view": "^1.0",
         "topthink/think-helper": "^3.0.0",
-        "symfony/var-exporter": "^5.3.0"
+        "symfony/var-exporter": "^5.3.0",
+        "nelexa/zip": "^3.3"
     },
     "autoload": {
         "psr-4": {

@@ -40,9 +40,9 @@ abstract class Addons
     // 视图模型
     protected $view;
     // 插件配置
-    protected $addon_config;
+    public $addon_config;
     // 插件信息
-    protected $addon_info;
+    public $addon_info;
 
     /**
      * 插件构造函数

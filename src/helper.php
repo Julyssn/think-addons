@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use Symfony\Component\VarExporter\VarExporter;
 use think\facade\Event;
 use think\facade\Route;
 use think\facade\Config;
@@ -309,6 +310,21 @@ if (!function_exists('set_addons_fullconfig')) {
     }
 }
 
+if (!function_exists('get_addons_info')) {
+    /**
+     * 读取插件的基础信息
+     * @param string $name 插件名
+     * @return array
+     */
+    function get_addons_info($name)
+    {
+        $addon = get_addons_instance($name);
+        if (!$addon) {
+            return [];
+        }
+        return $addon->getInfo($name);
+    }
+}
 
 if (!function_exists('set_addons_info')) {
     /**
@@ -341,14 +357,13 @@ if (!function_exists('set_addons_info')) {
             fwrite($handle, implode("\n", $res) . "\n");
             fclose($handle);
             //清空当前配置缓存
-            Config::set($name, null, 'addoninfo');
+            Config::set([], $addon->addon_info);
         } else {
             throw new Exception("文件没有写入权限");
         }
         return true;
     }
 }
-
 
 if (!function_exists('is_really_writable')) {
 
