@@ -4,6 +4,7 @@
 namespace think\addons\command;
 
 
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\TransferException;
 use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
@@ -20,13 +21,13 @@ class AddnoTool
      * @param array  $extend 扩展参数
      * @return  string
      */
-    public static function download($name, $extend = [])
+    public static function download($name, $url, $extend = [])
     {
         $addonsTempDir = self::getAddonsBackupDir();
         $tmpFile = $addonsTempDir . $name . ".zip";
         try {
             $client = self::getClient();
-            $response = $client->get('/addon/download', ['query' => array_merge(['name' => $name], $extend)]);
+            $response = $client->get($url, ['query' => array_merge(['name' => $name], $extend)]);
             $body = $response->getBody();
             $content = $body->getContents();
             if (substr($content, 0, 1) === '{') {
@@ -94,4 +95,38 @@ class AddnoTool
         return $dir;
     }
 
+
+    /**
+     * 获取插件备份目录
+     */
+    public static function getAddonsBackupDir()
+    {
+        $dir = app()->getRuntimePath() . 'addons' . DS;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        return $dir;
+    }
+
+    /**
+     * 获取请求对象
+     * @return Client
+     */
+    protected static function getClient()
+    {
+        $options = [
+            'timeout'         => 30,
+            'connect_timeout' => 30,
+            'verify'          => false,
+            'http_errors'     => false,
+            'headers'         => [
+                'X-REQUESTED-WITH' => 'XMLHttpRequest',
+            ]
+        ];
+        static $client;
+        if (empty($client)) {
+            $client = new Client($options);
+        }
+        return $client;
+    }
 }
