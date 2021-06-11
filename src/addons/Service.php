@@ -23,7 +23,9 @@ class Service extends \think\Service
     public function register()
     {
         // 插件目录
-        define('DS', DIRECTORY_SEPARATOR);
+        if (!defined('DS')) {
+            define('DS', DIRECTORY_SEPARATOR);
+        }
         define('ADDON_PATH', root_path() . 'addons' . DS);
 
         // 如果插件目录不存在则创建
