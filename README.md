@@ -19,16 +19,23 @@ php think addons:config
 
 ### 公共配置
 ```php
-'addons' => [
-    // 是否自动读取取插件钩子配置信息（默认是开启）
+return [
     'autoload' => true,
-    // 当关闭自动获取配置时需要手动配置hooks信息
     'hooks' => [
-	    // 可以定义多个钩子
-        'testhook'=>'test' // 键为钩子名称，用于在业务中自定义钩子处理，值为实现该钩子的插件，
-					// 多个插件可以用数组也可以用逗号分割
-	],
-    'route' => [],
+        // 可以定义多个钩子
+        'testhook' => 'test' // 键为钩子名称，用于在业务中自定义钩子处理，值为实现该钩子的插件，
+        // 多个插件可以用数组也可以用逗号分割
+    ],
+    'route' => [
+        [ //域名路由
+            'domain' => 'test', //域名前缀
+            'rule' => [ //路由列表
+                'test' => 'test/Index/link'
+            ]
+        ],
+        //普通路由
+        'test' => 'test/Index/link'
+    ],
     'service' => [],
 ];
 ```
@@ -223,6 +230,9 @@ function get_addons_instance($name);
 function addons_url($url = '', $param = [], $suffix = true, $domain = false);
 
 ```
+
+### 插件内路由
+> 插件内route.php文件为插件内路由 数据格式和配置中路由项一致
 
 ## 插件目录结构
 ### 最终生成的目录结构为
