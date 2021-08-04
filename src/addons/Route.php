@@ -57,7 +57,7 @@ class Route
         if (!$info) {
             throw new HttpException(404, lang('addon %s not found', [$addon]));
         }
-        if (!$info['state']) {
+        if (!$info['status']) {
             throw new HttpException(500, lang('addon %s is disabled', [$addon]));
         }
 

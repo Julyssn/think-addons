@@ -223,8 +223,8 @@ class AddnoTool
 
         Db::startTrans();
         try {
-            if (!$info['state']) {
-                $info['state'] = 1;
+            if (!$info['status']) {
+                $info['status'] = 1;
                 set_addons_info($name, $info);
             }
 
@@ -291,7 +291,7 @@ class AddnoTool
     public static function upgrade($name, $url, $extend = [])
     {
         $info = get_addons_info($name);
-        if ($info['state']) {
+        if ($info['status']) {
             throw new Exception(lang('Please disable addon first'));
         }
         $config = get_addons_config($name);
@@ -390,7 +390,7 @@ class AddnoTool
         }
 
         $info          = get_addons_info($name);
-        $info['state'] = 1;
+        $info['status'] = 1;
         unset($info['url']);
 
         set_addons_info($name, $info);
@@ -413,7 +413,7 @@ class AddnoTool
         }
 
         $info          = get_addons_info($name);
-        $info['state'] = 0;
+        $info['status'] = 0;
         unset($info['url']);
 
         set_addons_info($name, $info);

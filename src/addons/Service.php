@@ -206,7 +206,7 @@ class Service extends \think\Service
             }
             //处理插件内路由
             if (strtolower($info['filename']) === 'route') {
-                $config['route'] = include $addons_file;
+                $config['route'] = array_merge($config['route'], include $addons_file);
             }
         }
         Config::set($config, 'addons');
