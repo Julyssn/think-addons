@@ -165,12 +165,9 @@ abstract class Addons
      * @param array $value
      * @return array
      */
-    final public function setInfo($name = '', $value = [])
+    final public function setInfo($value = [])
     {
-        if (empty($name)) {
-            $name = $this->getName();
-        }
-        $info = $this->getInfo($name);
+        $info = $this->getInfo();
         $info = array_merge($info, $value);
         Config::set($info, $this->addon_info);
         return $info;
@@ -204,24 +201,6 @@ abstract class Addons
     }
 
     /**
-     * 获取完整配置列表
-     * @param string $name
-     * @return array
-     */
-    final public function getFullConfig($name = '')
-    {
-        $fullConfigArr = [];
-        if (empty($name)) {
-            $name = $this->getName();
-        }
-        $config_file = $this->addon_path . 'config.php';
-        if (is_file($config_file)) {
-            $fullConfigArr = include $config_file;
-        }
-        return $fullConfigArr;
-    }
-
-    /**
      * 设置配置数据
      * @param       $name
      * @param array $value
@@ -245,7 +224,7 @@ abstract class Addons
     final public function checkInfo()
     {
         $info = $this->getInfo();
-        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'status'];
+        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'status', 'url'];
         foreach ($info_check_keys as $value) {
             if (!array_key_exists($value, $info)) {
                 return false;

@@ -216,7 +216,7 @@ if (!function_exists('get_addons_list')) {
             if (!isset($info['name'])) {
                 continue;
             }
-            $info['url'] = addons_url($name);
+
             $list[$name] = $info;
         }
         return $list;

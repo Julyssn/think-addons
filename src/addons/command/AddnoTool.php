@@ -389,7 +389,7 @@ class AddnoTool
             throw new Exception($e->getMessage());
         }
 
-        $info          = get_addons_info($name);
+        $info           = get_addons_info($name);
         $info['status'] = 1;
         unset($info['url']);
 
@@ -412,7 +412,7 @@ class AddnoTool
             throw new Exception('Addon not exists');
         }
 
-        $info          = get_addons_info($name);
+        $info           = get_addons_info($name);
         $info['status'] = 0;
         unset($info['url']);
 
