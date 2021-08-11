@@ -2,23 +2,20 @@
 declare(strict_types=1);
 
 use Symfony\Component\VarExporter\VarExporter;
+use think\facade\Config;
 use think\facade\Event;
 use think\facade\Route;
-use think\facade\Config;
-use think\helper\{
-    Str, Arr
-};
+use think\helper\{Str};
 
-\think\Console::starting(function (\think\Console $console)
-{
+\think\Console::starting(function (\think\Console $console) {
     $console->addCommands([
-        'addons:config' => '\\think\\addons\\command\\SendConfig'
+        'addons:config' => '\\think\\addons\\command\\SendConfig',
+        'addons:pack' => '\\think\\addons\\command\\PackAddon'
     ]);
 });
 
 // 插件类库自动载入
-spl_autoload_register(function ($class)
-{
+spl_autoload_register(function ($class) {
 
     $class = ltrim($class, '\\');
 
@@ -77,6 +74,45 @@ if (!function_exists('get_addons_info')) {
         }
 
         return $addon->getInfo();
+    }
+}
+
+if (!function_exists('set_addons_info')) {
+    /**
+     * 设置基础配置信息
+     * @param string $name 插件名
+     * @param array $array 配置数据
+     * @return boolean
+     * @throws Exception
+     */
+    function set_addons_info($name, $array)
+    {
+        $file  = ADDON_PATH . $name . DS . 'info.ini';
+        $addon = get_addons_instance($name);
+        $array = $addon->setInfo($array);
+        if (!isset($array['name']) || !isset($array['title']) || !isset($array['version'])) {
+            throw new Exception("插件配置写入失败");
+        }
+        $res = array();
+        foreach ($array as $key => $val) {
+            if (is_array($val)) {
+                $res[] = "[$key]";
+                foreach ($val as $skey => $sval) {
+                    $res[] = "$skey = " . (is_numeric($sval) ? $sval : $sval);
+                }
+            } else {
+                $res[] = "$key = " . (is_numeric($val) ? $val : $val);
+            }
+        }
+        if ($handle = fopen($file, 'w')) {
+            fwrite($handle, implode("\n", $res) . "\n");
+            fclose($handle);
+            //清空当前配置缓存
+            Config::set([], $addon->addon_info);
+        } else {
+            throw new Exception("文件没有写入权限");
+        }
+        return true;
     }
 }
 
@@ -310,61 +346,6 @@ if (!function_exists('set_addons_fullconfig')) {
     }
 }
 
-if (!function_exists('get_addons_info')) {
-    /**
-     * 读取插件的基础信息
-     * @param string $name 插件名
-     * @return array
-     */
-    function get_addons_info($name)
-    {
-        $addon = get_addons_instance($name);
-        if (!$addon) {
-            return [];
-        }
-        return $addon->getInfo($name);
-    }
-}
-
-if (!function_exists('set_addons_info')) {
-    /**
-     * 设置基础配置信息
-     * @param string $name 插件名
-     * @param array $array 配置数据
-     * @return boolean
-     * @throws Exception
-     */
-    function set_addons_info($name, $array)
-    {
-        $file  = ADDON_PATH . $name . DS . 'info.ini';
-        $addon = get_addons_instance($name);
-        $array = $addon->setInfo($name, $array);
-        if (!isset($array['name']) || !isset($array['title']) || !isset($array['version'])) {
-            throw new Exception("插件配置写入失败");
-        }
-        $res = array();
-        foreach ($array as $key => $val) {
-            if (is_array($val)) {
-                $res[] = "[$key]";
-                foreach ($val as $skey => $sval) {
-                    $res[] = "$skey = " . (is_numeric($sval) ? $sval : $sval);
-                }
-            } else {
-                $res[] = "$key = " . (is_numeric($val) ? $val : $val);
-            }
-        }
-        if ($handle = fopen($file, 'w')) {
-            fwrite($handle, implode("\n", $res) . "\n");
-            fclose($handle);
-            //清空当前配置缓存
-            Config::set([], $addon->addon_info);
-        } else {
-            throw new Exception("文件没有写入权限");
-        }
-        return true;
-    }
-}
-
 if (!function_exists('is_really_writable')) {
 
     /**
@@ -398,8 +379,8 @@ if (!function_exists('rmdirs')) {
 
     /**
      * 删除文件夹
-     * @param string $dirname  目录
-     * @param bool   $withself 是否删除自身
+     * @param string $dirname 目录
+     * @param bool $withself 是否删除自身
      * @return boolean
      */
     function rmdirs($dirname, $withself = true)
@@ -420,5 +401,89 @@ if (!function_exists('rmdirs')) {
             @rmdir($dirname);
         }
         return true;
+    }
+}
+
+if (!function_exists('copydirs')) {
+
+    /**
+     * 复制文件夹
+     * @param string $source 源文件夹
+     * @param string $dest 目标文件夹
+     */
+    function copydirs($source, $dest)
+    {
+        if (!is_dir($dest)) {
+            mkdir($dest, 0755, true);
+        }
+        foreach (
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            ) as $item
+        ) {
+            if ($item->isDir()) {
+                $sontDir = $dest . DS . $iterator->getSubPathName();
+                if (!is_dir($sontDir)) {
+                    mkdir($sontDir, 0755, true);
+                }
+            } else {
+                copy($item->getRealPath(), $dest . DS . $iterator->getSubPathName());
+            }
+        }
+    }
+}
+
+if (!function_exists('removedirs')) {
+
+    /**
+     * 将源文件对应的资源文件删除
+     * @param string $source 源文件夹
+     * @param string $dest 目标文件夹
+     */
+    function removedirs($source, $dest)
+    {
+        //对应文件夹不存在
+        if (!is_dir($dest)) {
+            return;
+        }
+
+        $removeDir = [];
+        foreach (
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            ) as $item
+        ) {
+            if ($item->isDir()) {
+                $sontDir = $dest . DS . $iterator->getSubPathName();
+                if (is_dir($sontDir)) {
+                    array_unshift($removeDir, $sontDir);
+                }
+            } else {
+
+                if (file_exists($dest . DS . $iterator->getSubPathName())) {
+                    unlink($dest . DS . $iterator->getSubPathName());
+                }
+            }
+        }
+
+        array_pop($removeDir);
+        foreach ($removeDir as $item) {
+            @rmdir($item);
+        }
+    }
+}
+
+if (!function_exists('addon_is_installed')) {
+
+    /**
+     * 是否安装插件
+     * @param $name
+     * @return bool
+     */
+    function addon_is_installed($name)
+    {
+        return is_dir(ADDON_PATH . $name);
     }
 }

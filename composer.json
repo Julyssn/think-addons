@@ -16,7 +16,8 @@
         "symfony/var-exporter": "^5.3.0",
         "nelexa/zip": "^3.3",
         "guzzlehttp/guzzle": "^7.3",
-        "ext-json": "*"
+        "ext-json": "*",
+        "ext-zip": "*"
     },
     "autoload": {
         "psr-4": {

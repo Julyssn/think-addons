@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace think\addons\command;
+namespace think\addons;
 
 
 use GuzzleHttp\Client;
@@ -191,7 +191,7 @@ class AddnoTool
      */
     public static function install($name, $url, $extend = [])
     {
-        if (!$name || (is_dir(ADDON_PATH . $name) && !$force)) {
+        if (!$name || (is_dir(ADDON_PATH . $name))) {
             throw new Exception('Addon already exists');
         }
 
@@ -248,6 +248,20 @@ class AddnoTool
         // 启用插件
         self::enable($name, true);
 
+        $addonDir        = self::getAddonDir($name);
+        $sourceAssetsDir = self::getSourceStaticDir($name);
+        $destAssetsDir   = self::getDestStaticDir();
+
+        // 复制文件
+        if (is_dir($sourceAssetsDir)) {
+            copydirs($sourceAssetsDir, $destAssetsDir);
+        }
+
+        // 复制app
+        if (is_dir($addonDir . "app")) {
+            copydirs($addonDir . "app", root_path() . "app");
+        }
+
         $info['config'] = get_addons_config($name) ? 1 : 0;
         return $info;
     }
@@ -275,8 +289,24 @@ class AddnoTool
             throw new Exception($e->getMessage());
         }
 
+        $addonDir        = self::getAddonDir($name);
+        $sourceAssetsDir = self::getSourceStaticDir($name);
+        $destAssetsDir   = self::getDestStaticDir();
+
+
+        // 删除资源文件
+        if (is_dir($sourceAssetsDir)) {
+            removedirs($sourceAssetsDir, $destAssetsDir);
+        }
+
+        // 删除app文件
+        if (is_dir($addonDir . "app")) {
+            removedirs($addonDir . "app", root_path() . "app");
+        }
+
+
         // 移除插件目录
-        rmdirs(ADDON_PATH . $name);
+        @rmdirs(ADDON_PATH . $name);
 
         return true;
     }
@@ -389,7 +419,8 @@ class AddnoTool
             throw new Exception($e->getMessage());
         }
 
-        $info           = get_addons_info($name);
+        $info = get_addons_info($name);
+
         $info['status'] = 1;
         unset($info['url']);
 
@@ -406,7 +437,7 @@ class AddnoTool
      * @return  boolean
      * @throws  Exception
      */
-    public static function disable($name, $force = false)
+    public static function disable($name)
     {
         if (!$name || !is_dir(ADDON_PATH . $name)) {
             throw new Exception('Addon not exists');
@@ -441,6 +472,27 @@ class AddnoTool
     {
         $dir = ADDON_PATH . $name . DS;
         return $dir;
+    }
+
+    /**
+     * 获取插件源资源文件夹
+     * @param string $name 插件名称
+     * @return  string
+     */
+    protected static function getSourceStaticDir($name)
+    {
+        return ADDON_PATH . $name . DS . 'static';
+    }
+
+    /**
+     * 获取插件目标资源文件夹
+     * @param string $name 插件名称
+     * @return  string
+     */
+    protected static function getDestStaticDir()
+    {
+        $assetsDir = root_path() . str_replace("/", DS, "public/static");
+        return $assetsDir;
     }
 
     /**
