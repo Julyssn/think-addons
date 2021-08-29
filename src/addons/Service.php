@@ -55,7 +55,7 @@ class Service extends \think\Service
             $execute = '\\think\\addons\\Route@execute';
 
             // 注册插件公共中间件
-            $middlewares = [Addons::class];
+            $middlewares = $baseMiddlewares = [Addons::class];
             if (is_file($this->app->addons->getAddonsPath() . 'middleware.php')) {
                 $publicMiddlewares = include $this->app->addons->getAddonsPath() . 'middleware.php';
                 $middlewares       = array_merge($middlewares, $publicMiddlewares);
@@ -71,39 +71,65 @@ class Service extends \think\Service
                     continue;
                 }
                 if (is_array($val)) {
-                    $domain = $val['domain'];
-                    $rules  = [];
-                    foreach ($val['rule'] as $k => $rule) {
-                        [$addon, $controller, $action] = explode('/', $rule);
-                        $rules[$k] = [
-                            'addon' => $addon,
-                            'controller' => $controller,
-                            'action' => $action,
-                            'indomain' => 1,
-                        ];
-                    }
-                    $route->domain($domain, function () use ($rules, $route, $execute) {
-                        // 动态注册域名的路由规则
-                        foreach ($rules as $k => $rule) {
-                            $route->rule($k, $execute)
-                                  ->name($k)
-                                  ->completeMatch(true)
-                                  ->append($rule)->middleware($middlewares);
+                    if (isset($val['domain'])) { //有域名前缀的情况下 为域名路由
+                        $domain = $val['domain'];
+                        $rules  = [];
+                        foreach ($val['rule'] as $k => $rule) {
+                            [$addon, $controller, $action] = explode('/', $rule);
+                            $rules[$k] = [
+                                'addon' => $addon,
+                                'controller' => $controller,
+                                'action' => $action,
+                                'indomain' => 1,
+                            ];
                         }
-                    });
+                        $route->domain($domain, function () use ($rules, $route, $execute) {
+                            // 动态注册域名的路由规则
+                            foreach ($rules as $k => $rule) {
+                                if (!is_array($rule)) {
+                                    $this->addRoute($route, $k, $execute, $rule, $middlewares);
+                                } else {
+                                    if (!($rule['middlewares'] ?? false) || !is_array($rule['middlewares'])) {
+                                        $this->addRoute($route, $key, $execute, $rule['route'], $baseMiddlewares);
+                                    } else {
+                                        $this->addRoute($route, $key, $execute, $rule['route'], array_merge($baseMiddlewares, $rule['middlewares']));
+                                    }
+                                }
+                            }
+                        });
+                    } else { //没有域名前缀为定义了中间件的特殊路由
+                        if (!($val['middlewares'] ?? false) || !is_array($val['middlewares'])) {
+                            $this->addRoute($route, $key, $execute, $val['route'], $baseMiddlewares);
+                        } else {
+                            $this->addRoute($route, $key, $execute, $val['route'], array_merge($baseMiddlewares, $val['middlewares']));
+                        }
+                    }
                 } else {
-                    list($addon, $controller, $action) = explode('/', $val);
-                    $route->rule($key, $execute)
-                          ->name($key)
-                          ->completeMatch(true)
-                          ->append([
-                              'addon' => $addon,
-                              'controller' => $controller,
-                              'action' => $action
-                          ])->middleware($middlewares);
+                    $this->addRoute($route, $key, $execute, $val, $middlewares);
                 }
             }
         });
+    }
+
+    /**
+     * 添加路由
+     * @param \think\Route $routeClass 路由对象
+     * @param string $rule 路由规则
+     * @param string $route 路由地址
+     * @param string $val 对应应用地址
+     * @param array $middlewares 中间件数组
+     */
+    private function addRoute($routeClass, $rule, $route, $val, $middlewares)
+    {
+        list($addon, $controller, $action) = explode('/', $val);
+        $routeClass->rule($rule, $route)
+                   ->name($rule)
+                   ->completeMatch(true)
+                   ->append([
+                       'addon' => $addon,
+                       'controller' => $controller,
+                       'action' => $action
+                   ])->middleware($middlewares);
     }
 
     /**
