@@ -33,6 +33,12 @@ return [
                 'test' => 'test/Index/link'
             ]
         ],
+        'test' => [ //路由中间件模式
+            'route' => 'test/Index/link', 
+            'middlewares' => [ //中间件列表 如果不想使用应用的全局中间件 数组改为false即可
+                'middlewares'
+            ]
+        ],
         //普通路由
         'test' => 'test/Index/link'
     ],
