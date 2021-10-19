@@ -28,6 +28,7 @@ class PackAddon extends Command
         $name = trim($input->getArgument('name'));
 
         $addonDir = ADDON_PATH . $name . DS;
+        $publicDir = public_path() . 'static' . DS;
 
         $infoFile = $addonDir . 'info.ini';
         if (!is_file($infoFile)) {
@@ -87,7 +88,7 @@ class PackAddon extends Command
         foreach ($publicFiles as $fileName => $file) {
             if (!$file->isDir()) {
                 $filePath     = $file->getRealPath();
-                $relativePath = str_replace(DS, '/', 'static' . DS . substr($filePath, strlen($addonDir)));
+                $relativePath = str_replace(DS, '/', 'static' . DS . substr($filePath, strlen($publicDir)));
                 if (!in_array($file->getFilename(), ['.git', '.DS_Store', 'Thumbs.db'])) {
                     $zip->addFile($filePath, $relativePath);
                 }
