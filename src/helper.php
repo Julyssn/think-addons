@@ -129,7 +129,7 @@ if (!function_exists('get_addons_instance')) {
             return $_addons[$name];
         }
         $class = get_addons_class($name);
-        if (class_exists($class, false)) {
+        if (class_exists($class)) {
             $_addons[$name] = new $class(app());
 
             return $_addons[$name];
@@ -167,7 +167,7 @@ if (!function_exists('get_addons_class')) {
                 $namespace = '\\addons\\' . $name . '\\Plugin';
         }
 
-        return class_exists($namespace, false) ? $namespace : '';
+        return class_exists($namespace) ? $namespace : '';
     }
 }
 
