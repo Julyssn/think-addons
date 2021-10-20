@@ -388,6 +388,20 @@ class AddnoTool
             throw new Exception($e->getMessage());
         }
 
+        $addonDir        = self::getAddonDir($name);
+        $sourceAssetsDir = self::getSourceStaticDir($name);
+        $destAssetsDir   = self::getDestStaticDir();
+
+        // 复制文件
+        if (is_dir($sourceAssetsDir)) {
+            copydirs($sourceAssetsDir, $destAssetsDir);
+        }
+
+        // 复制app
+        if (is_dir($addonDir . "app")) {
+            copydirs($addonDir . "app", root_path() . "app");
+        }
+
         //必须变更版本号
         $info['version'] = isset($extend['version']) ? $extend['version'] : $info['version'];
         $info['config']  = get_addons_config($name) ? 1 : 0;
