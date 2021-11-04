@@ -23,9 +23,9 @@ declare(strict_types=1);
 namespace think;
 
 use think\App;
-use think\helper\Str;
 use think\facade\Config;
 use think\facade\View;
+use think\helper\Str;
 
 abstract class Addons
 {
@@ -230,6 +230,25 @@ abstract class Addons
             }
         }
         return true;
+    }
+
+    /**
+     * 获取完整配置列表.
+     * @param string $name
+     * @return array
+     */
+    final public function getFullConfig($name = '')
+    {
+        $fullConfigArr = [];
+        if (empty($name)) {
+            $name = $this->name;
+        }
+        $config_file = $this->addon_path . 'config.php';
+        if (is_file($config_file)) {
+            $fullConfigArr = include $config_file;
+        }
+
+        return $fullConfigArr;
     }
 
     //必须实现安装
