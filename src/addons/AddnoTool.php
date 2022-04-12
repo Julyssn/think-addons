@@ -165,7 +165,9 @@ class AddnoTool
 
                 $templine .= $line;
                 if (substr(trim($line), -1, 1) == ';') {
-                    $templine = str_ireplace('__PREFIX__', config('database.prefix'), $templine); //替换表前缀
+                    $config   = config('database');
+                    $prefix   = $config['connections'][$config['default']]['prefix'];
+                    $templine = str_ireplace('__PREFIX__', $prefix, $templine);                   //替换表前缀
                     $templine = str_ireplace('INSERT INTO ', 'INSERT IGNORE INTO ', $templine);   //替换数据插入模式
                     try {
                         Db::getPdo()->exec($templine);
