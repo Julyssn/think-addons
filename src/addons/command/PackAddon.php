@@ -27,7 +27,7 @@ class PackAddon extends Command
     {
         $name = trim($input->getArgument('name'));
 
-        $addonDir = ADDON_PATH . $name . DS;
+        $addonDir  = ADDON_PATH . $name . DS;
         $publicDir = public_path() . 'static' . DS;
 
         $infoFile = $addonDir . 'info.ini';
@@ -51,12 +51,12 @@ class PackAddon extends Command
             throw new \RuntimeException('Addon info version incorrect');
         }
 
-        $addonTmpDir = RUNTIME_PATH;
+        $addonTmpDir = root_path();
 
         if (!is_dir($addonTmpDir)) {
             @mkdir($addonTmpDir, 0755, true);
         }
-        $addonFile = $addonTmpDir . $infoName . '-' . $infoVersion . '.zip';
+        $addonFile = $addonTmpDir . 'addons-' . $infoName . '-' . $infoVersion . '.zip';
         if (!class_exists('ZipArchive')) {
             throw new \RuntimeException('ZinArchive not install');
         }
