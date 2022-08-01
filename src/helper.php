@@ -308,9 +308,8 @@ if (!function_exists('set_addons_config')) {
         $addon->setConfig($name, $config);
         $fullconfig = get_addons_fullconfig($name);
         foreach ($fullconfig as $k => &$v) {
-            if (isset($config[$v['name']])) {
-                $value      = $v['type'] !== 'array' && is_array($config[$v['name']]) ? implode(',', $config[$v['name']]) : $config[$v['name']];
-                $v['value'] = $value;
+            if (isset($config[$v['field']])) {
+                $v['value'] = $config[$v['field']];
             }
         }
         if ($writefile) {
