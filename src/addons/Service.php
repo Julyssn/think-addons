@@ -83,16 +83,16 @@ class Service extends \think\Service
                                 'indomain' => 1,
                             ];
                         }
-                        $route->domain($domain, function () use ($rules, $route, $execute) {
+                        $route->domain($domain, function () use ($rules, $route, $execute, $middlewares, $baseMiddlewares) {
                             // 动态注册域名的路由规则
                             foreach ($rules as $k => $rule) {
                                 if (!is_array($rule)) {
                                     $this->addRoute($route, $k, $execute, $rule, $middlewares);
                                 } else {
                                     if (!($rule['middlewares'] ?? false) || !is_array($rule['middlewares'])) {
-                                        $this->addRoute($route, $key, $execute, $rule['route'], $baseMiddlewares);
+                                        $this->addRoute($route, $k, $execute, $rule['route'], $baseMiddlewares);
                                     } else {
-                                        $this->addRoute($route, $key, $execute, $rule['route'], array_merge($baseMiddlewares, $rule['middlewares']));
+                                        $this->addRoute($route, $k, $execute, $rule['route'], array_merge($baseMiddlewares, $rule['middlewares']));
                                     }
                                 }
                             }
