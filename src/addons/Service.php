@@ -63,7 +63,7 @@ class Service extends \think\Service
             }
 
             // 注册控制器路由
-            $route->rule("addons/:addon/:controller/:action$", $execute)->middleware($middlewares);
+            $route->rule("addons/:addon/:controller/:action", $execute)->middleware($middlewares);
             // 自定义路由
             $routes = (array)Config::get('addons.route', []);
             foreach ($routes as $key => $val) {
